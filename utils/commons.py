@@ -5,8 +5,9 @@ import shutil
 __author__ = 'hiranya'
 
 class AppScaleToolsException(Exception):
-  def __init__(self, msg):
+  def __init__(self, msg, code=0):
     Exception.__init__(self, msg)
+    self.code = code
 
 def assert_required_commands_exist(commands):
   for command in commands:
