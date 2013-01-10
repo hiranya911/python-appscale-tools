@@ -144,3 +144,18 @@ class TestNodeLayout(TestCase):
       })
     except AppScaleToolsException as e:
       self.assertEquals(e.code, NodeLayout.ERROR_UNSUPPORTED_LAYOUT)
+
+  def test_advanced_format_yaml_only(self):
+    layout = NodeLayout('resources/advanced1.yaml')
+    nodes = layout.get_nodes()
+    self.assertEquals(len(nodes), 2)
+    open_node = None
+    for node in nodes:
+      if node.has_role(ROLE_OPEN):
+        open_node = node
+    self.assertTrue(open_node is not None)
+    self.assertEquals(len(open_node.roles), 1)
+
+    head_node = layout.get_head_node()
+    self.assertTrue(head_node is not None)
+    self.assertTrue(head_node.has_role(ROLE_DATABASE_MASTER))

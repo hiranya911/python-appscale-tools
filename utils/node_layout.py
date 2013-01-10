@@ -198,87 +198,86 @@ class NodeLayout:
         else:
           node.add_role(role)
         nodes[ip] = node
+        index += 1
 
-      nodes = nodes.values()
-      cloud = is_valid_cloud_type(self.infrastructure)
-      for node in nodes:
-        if cloud and not re.match(self.NODE_ID_REGEX, node.id):
-          raise AppScaleToolsException('Invalid cloud node ID: %s. '
-                                       'Cloud node IDs must be in the '
-                                       'format node-{ID}.' % node.id)
-        elif not cloud and not re.match(self.IP_REGEX, node.id):
-          raise AppScaleToolsException('Invalid virtualized node ID: %s. '
-                                       'Virtualized node IDs must be valid IP '
-                                       'addresses.' % node.id)
+    nodes = nodes.values()
+    cloud = is_valid_cloud_type(self.infrastructure)
+    for node in nodes:
+      if cloud and not re.match(self.NODE_ID_REGEX, node.id):
+        raise AppScaleToolsException('Invalid cloud node ID: %s. '
+                                     'Cloud node IDs must be in the '
+                                     'format node-{ID}.' % node.id)
+      elif not cloud and not re.match(self.IP_REGEX, node.id):
+        raise AppScaleToolsException('Invalid virtualized node ID: %s. '
+                                     'Virtualized node IDs must be valid IP '
+                                     'addresses.' % node.id)
 
-      controllers = 0
-      app_engines = 0
-      memcache_nodes = 0
-      zk_nodes = 0
-      rabbit_mq_nodes = 0
-      db_nodes = 0
-      master_node = None
-      login_node = None
-      app_engine_nodes = []
-      for node in nodes:
-        if node.has_role(ROLE_SHADOW):
-          master_node = node
-          controllers += 1
-        elif node.has_role(ROLE_LOGIN):
-          login_node = node
-        elif node.has_role(ROLE_APPENGINE):
-          app_engines += 1
-          app_engine_nodes.append(node)
-        elif node.has_role(ROLE_MEMCACHE):
-          memcache_nodes += 1
-        elif node.has_role(ROLE_ZOOKEEPER):
-          zk_nodes += 1
-        elif node.has_role(ROLE_RABBITMQ):
-          rabbit_mq_nodes += 1
-        elif node.has_role(ROLE_DATABASE):
-          db_nodes += 1
+    controllers = 0
+    memcache_nodes = 0
+    zk_nodes = 0
+    rabbit_mq_nodes = 0
+    db_nodes = 0
+    master_node = None
+    login_node = None
+    app_engine_nodes = []
+    for node in nodes:
+      if node.has_role(ROLE_SHADOW):
+        master_node = node
+        controllers += 1
+      if node.has_role(ROLE_LOGIN):
+        login_node = node
+      if node.has_role(ROLE_APPENGINE):
+        app_engine_nodes.append(node)
+      if node.has_role(ROLE_MEMCACHE):
+        memcache_nodes += 1
+      if node.has_role(ROLE_ZOOKEEPER):
+        zk_nodes += 1
+      if node.has_role(ROLE_RABBITMQ):
+        rabbit_mq_nodes += 1
+      if node.has_role(ROLE_DATABASE):
+        db_nodes += 1
 
-      if controllers > 1:
-        raise AppScaleToolsException('Only one controller node is allowed')
-      elif not controllers:
-        raise AppScaleToolsException('No controller node has been assigned')
+    if controllers > 1:
+      raise AppScaleToolsException('Only one controller node is allowed')
+    elif not controllers:
+      raise AppScaleToolsException('No controller node has been assigned')
 
-      if not app_engines:
-        raise AppScaleToolsException('Not enough appengine nodes were provided')
+    if not app_engine_nodes:
+      raise AppScaleToolsException('Not enough appengine nodes were provided')
 
-      if not login_node:
-        master_node.add_role(ROLE_LOGIN)
+    if not login_node:
+      master_node.add_role(ROLE_LOGIN)
 
-      if not memcache_nodes:
-        for app_engine in app_engine_nodes:
-          app_engine.add_role(ROLE_MEMCACHE)
+    if not memcache_nodes:
+      for app_engine in app_engine_nodes:
+        app_engine.add_role(ROLE_MEMCACHE)
 
-      if not zk_nodes:
-        master_node.add_role(ROLE_ZOOKEEPER)
+    if not zk_nodes:
+      master_node.add_role(ROLE_ZOOKEEPER)
 
-      if not rabbit_mq_nodes:
-        master_node.add_role(ROLE_RABBITMQ)
-        master_node.add_role(ROLE_RABBITMQ_MASTER)
+    if not rabbit_mq_nodes:
+      master_node.add_role(ROLE_RABBITMQ)
+      master_node.add_role(ROLE_RABBITMQ_MASTER)
 
-      for node in nodes:
-        if node.has_role(ROLE_APPENGINE) and not node.has_role(ROLE_RABBITMQ):
-          node.add_role(ROLE_RABBITMQ_SLAVE)
+    for node in nodes:
+      if node.has_role(ROLE_APPENGINE) and not node.has_role(ROLE_RABBITMQ):
+        node.add_role(ROLE_RABBITMQ_SLAVE)
 
-      if cloud:
-        if self.min_images is None: self.min_images = len(nodes)
-        if self.max_images is None: self.max_images = len(nodes)
-        if len(nodes) < self.min_images:
-          raise AppScaleToolsException('Too few nodes were provided. %s '
-                                       'provided, but %s is the minimum.' %
-                                       (len(nodes), self.min_images))
-        if len(nodes) > self.max_images:
-          raise AppScaleToolsException('Too many nodes were provided. %s '
-                                       'provided, but %s is the maximum.' %
-                                       (len(nodes), self.max_images))
+    if cloud:
+      if self.min_images is None: self.min_images = len(nodes)
+      if self.max_images is None: self.max_images = len(nodes)
+      if len(nodes) < self.min_images:
+        raise AppScaleToolsException('Too few nodes were provided. %s '
+                                     'provided, but %s is the minimum.' %
+                                     (len(nodes), self.min_images))
+      if len(nodes) > self.max_images:
+        raise AppScaleToolsException('Too many nodes were provided. %s '
+                                     'provided, but %s is the maximum.' %
+                                     (len(nodes), self.max_images))
 
-      if not self.skip_replication:
-        self.__validate_data_replication(nodes)
-      self.nodes = nodes
+    if not self.skip_replication:
+      self.__validate_data_replication(nodes)
+    self.nodes = nodes
 
   def __validate_data_replication(self, nodes):
     db_nodes = 0
