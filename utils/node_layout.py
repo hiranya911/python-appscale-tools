@@ -1,6 +1,6 @@
 import re
 import yaml
-from utils import commons
+from utils import commons, cli
 from utils.cloud import is_valid_cloud_type
 from utils.commons import AppScaleToolsException
 
@@ -42,14 +42,6 @@ class NodeLayout:
   NODE_ID_REGEX = r'node-(\d+)'
   IP_REGEX = r'\d+\.\d+\.\d+\.\d+'
 
-  INFRASTRUCTURE = 'infrastructure'
-  DATABASE = 'database'
-  MIN_IMAGES = 'min_images'
-  MAX_IMAGES = 'max_images'
-  REPLICATION = 'replication'
-  READ_FACTOR = 'read_factor'
-  WRITE_FACTOR = 'write_factor'
-
   ERROR_DUPLICATE_IPS = 100100
   ERROR_NO_CONTROLLER = 100101
   ERROR_MULTIPLE_CONTROLLERS = 100102
@@ -66,13 +58,13 @@ class NodeLayout:
       self.yaml = None
 
     if options is None: options = {}
-    self.infrastructure = options.get(self.INFRASTRUCTURE)
-    self.database_type = options.get(self.DATABASE)
-    self.min_images = options.get(self.MIN_IMAGES)
-    self.max_images = options.get(self.MAX_IMAGES)
-    self.replication = options.get(self.REPLICATION)
-    self.read_factor = options.get(self.READ_FACTOR)
-    self.write_factor = options.get(self.WRITE_FACTOR)
+    self.infrastructure = options.get(cli.OPTION_INFRASTRUCTURE)
+    self.database_type = options.get(cli.OPTION_DATABASE)
+    self.min_images = options.get(cli.OPTION_MIN_IMAGES)
+    self.max_images = options.get(cli.OPTION_MAX_IMAGES)
+    self.replication = options.get(cli.OPTION_REPLICATION)
+    self.read_factor = options.get(cli.OPTION_READ_FACTOR)
+    self.write_factor = options.get(cli.OPTION_WRITE_FACTOR)
     self.skip_replication = skip_replication
     self.nodes = []
     self.__populate_nodes()

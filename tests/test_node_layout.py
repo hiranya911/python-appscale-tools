@@ -110,37 +110,37 @@ class TestNodeLayout(TestCase):
 
   def test_simple_format_options(self):
     try:
-      NodeLayout(None, { NodeLayout.INFRASTRUCTURE : 'euca' })
+      NodeLayout(None, { cli.OPTION_INFRASTRUCTURE : 'euca' })
     except AppScaleToolsException as e:
       self.assertEquals(e.code, NodeLayout.ERROR_MISSING_REQUIRED_OPTIONS)
 
     try:
       NodeLayout(None, {
-        NodeLayout.INFRASTRUCTURE : 'euca',
-        NodeLayout.MIN_IMAGES: 1
+        cli.OPTION_INFRASTRUCTURE : 'euca',
+        cli.OPTION_MIN_IMAGES: 1
       })
     except AppScaleToolsException as e:
       self.assertEquals(e.code, NodeLayout.ERROR_MISSING_REQUIRED_OPTIONS)
 
     try:
       NodeLayout(None, {
-        NodeLayout.INFRASTRUCTURE : 'euca',
-        NodeLayout.MAX_IMAGES: 3
+        cli.OPTION_INFRASTRUCTURE : 'euca',
+        cli.OPTION_MAX_IMAGES: 3
       })
     except AppScaleToolsException as e:
       self.assertEquals(e.code, NodeLayout.ERROR_MISSING_REQUIRED_OPTIONS)
 
     layout = NodeLayout(None, {
-      NodeLayout.INFRASTRUCTURE : 'euca',
-      NodeLayout.MAX_IMAGES: 3,
-      NodeLayout.MIN_IMAGES: 1
+      cli.OPTION_INFRASTRUCTURE : 'euca',
+      cli.OPTION_MAX_IMAGES: 3,
+      cli.OPTION_MIN_IMAGES: 1
     })
     self.assertTrue(len(layout.get_nodes()), 3)
     self.assertEquals(layout.get_head_node().id, 'node-0')
 
     try:
       NodeLayout(None, {
-        NodeLayout.INFRASTRUCTURE : 'xen'
+        cli.OPTION_INFRASTRUCTURE : 'xen'
       })
     except AppScaleToolsException as e:
       self.assertEquals(e.code, NodeLayout.ERROR_UNSUPPORTED_LAYOUT)
@@ -157,5 +157,6 @@ class TestNodeLayout(TestCase):
     self.assertEquals(len(open_node.roles), 1)
 
     head_node = layout.get_head_node()
+    self.assertTrue(isinstance(head_node, AdvancedAppScaleNode))
     self.assertTrue(head_node is not None)
     self.assertTrue(head_node.has_role(ROLE_DATABASE_MASTER))

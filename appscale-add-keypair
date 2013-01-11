@@ -13,24 +13,25 @@ if __name__ == '__main__':
   parser = get_parser(options)
   (options, args) = parser.parse_args(sys.argv[1:])
 
-  ips_path = None
-  keyname = 'appscale'
-  auto = False
+  add_key_options = {
+    OPTION_KEYNAME : 'appscale',
+    OPTION_AUTO : False
+  }
 
   if options.ips is None:
     print_usage_and_exit('IP address configuration not specified', parser)
   elif not os.path.exists(options.ips) or not os.path.isfile(options.ips):
     print_usage_and_exit('IP address configuration must be a valid file path', parser)
   else:
-    ips_path = options.ips
+    add_key_options[OPTION_IPS] = options.ips
 
   if options.keyname is not None:
-    keyname = options.keyname
+    add_key_options[OPTION_KEYNAME] = options.keyname
 
   if options.auto:
-    auto = options.auto
+    add_key_options[OPTION_AUTO] = options.auto
 
   try:
-    appscale_tools.add_key_pair(ips_path, keyname, auto)
+    appscale_tools.add_key_pair(add_key_options)
   except AppScaleToolsException as e:
     print 'Error performing the requested operation:', e.message

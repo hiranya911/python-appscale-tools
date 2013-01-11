@@ -5,6 +5,16 @@ __author__ = 'hiranya'
 OPTION_AUTO = 'auto'
 OPTION_IPS = 'ips'
 OPTION_KEYNAME = 'keyname'
+OPTION_GROUP = 'group'
+OPTION_MACHINE = 'machine'
+OPTION_INFRASTRUCTURE = 'infrastructure'
+OPTION_INSTANCE_TYPE = 'instance_type'
+OPTION_DATABASE = 'database'
+OPTION_MIN_IMAGES = 'min_images'
+OPTION_MAX_IMAGES = 'max_images'
+OPTION_REPLICATION = 'replication'
+OPTION_READ_FACTOR = 'read_factor'
+OPTION_WRITE_FACTOR = 'write_factor'
 
 class CLIOption:
   def __init__(self, name, description, bool):
