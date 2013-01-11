@@ -75,9 +75,6 @@ class NodeLayout:
         return node
     return None
 
-  def get_nodes(self):
-    return self.nodes
-
   def __populate_nodes(self):
     if self.__is_simple_format():
       self.__populate_simple_format()

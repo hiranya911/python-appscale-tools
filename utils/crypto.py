@@ -1,22 +1,29 @@
 import os
 import shutil
 import uuid
+from utils import commons
 from utils.commons import shell, AppScaleToolsException
 
 __author__ = 'hiranya'
 
-def generate_rsa_key(keyname):
-  path = os.path.expanduser('~/.appscale/%s' % keyname)
-  backup_key = os.path.expanduser('~/.appscale/%s.key' % keyname)
-  public_key = os.path.expanduser('~/.appscale/%s.pub' % keyname)
+# When we try to ssh to other machines, we don't want to be asked
+# for a password (since we always should have the right SSH key
+# present), and we don't want to be asked to confirm the host's
+# fingerprint, so set the options for that here.
+SSH_OPTIONS = "-o NumberOfPasswordPrompts=0 -o StrictHostkeyChecking=no"
 
-  if not os.path.exists(path) and not os.path.exists(public_key):
-    print shell("ssh-keygen -t rsa -N '' -f %s" % path)
+def generate_rsa_key(dir, keyname):
+  private_key = os.path.join(dir, keyname)
+  backup_key = os.path.join(dir, keyname + '.key')
+  public_key = os.path.join(dir, keyname + '.pub')
 
-  os.chmod(path, 0600)
+  if not os.path.exists(private_key) and not os.path.exists(public_key):
+    print shell("ssh-keygen -t rsa -N '' -f %s" % private_key)
+
+  os.chmod(private_key, 0600)
   os.chmod(public_key, 0600)
-  shutil.copyfile(path, backup_key)
-  return path, public_key, backup_key
+  shutil.copyfile(private_key, backup_key)
+  return private_key, public_key, backup_key
 
 def ssh_copy_id(ip, path, auto, expect_script, password):
   heading = '\nExecuting ssh-copy-id for host : ' + ip
@@ -31,18 +38,24 @@ def ssh_copy_id(ip, path, auto, expect_script, password):
   status, output = shell(command, status=True)
   print output
   if not status:
-    raise AppScaleToolsException('Error while executing '
-                                 'ssh-copy-id on {%s}' % ip)
+    msg = 'Error while executing ssh-copy-id on %s' % ip
+    raise AppScaleToolsException(msg)
 
-def scp_ssh_key_to_ip(ip, ssh_key, pub_key):
-  print shell("scp -i {%s} {%s} root@{%s}:.ssh/id_dsa" % (ssh_key, ssh_key, ip))
-  print shell("scp -i {%s} {%s} root@{%s}:.ssh/id_rsa.pub" % (ssh_key, pub_key, ip))
-
-def generate_secret_key(keyname):
-  path = '~/.appscale/%s.secret' % keyname
+def generate_secret_key(path):
   secret_key = str(uuid.uuid4()).replace('-', '')
   full_path = os.path.expanduser(path)
   secret_file = open(full_path, 'w')
   secret_file.write(secret_key)
   secret_file.close()
-  return secret_key, path
+  return secret_key
+
+def is_ssh_key_valid(ssh_key, host):
+  command = "ssh -i %s %s 2>&1 root@%s 'touch /tmp/foo'; "\
+              "echo $? " % (ssh_key, SSH_OPTIONS, host)
+  status, output = commons.shell(command, status=True)
+  return status is 0
+
+def scp_file(source, destination, host, ssh_key):
+  command = 'scp -i %s %s 2>&1 '\
+            '%s root@%s:%s' % (ssh_key, SSH_OPTIONS, source, host, destination)
+  shell(command, status=True)

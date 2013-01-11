@@ -1,0 +1,30 @@
+#!/usr/bin/python
+
+import sys
+from utils import cli
+
+__author__ = 'hiranya'
+
+if __name__ == '__main__':
+  options = [
+    cli.OPTION_IPS,
+    cli.OPTION_MAX_IMAGES,
+    cli.OPTION_MIN_IMAGES,
+    cli.OPTION_APP_FILE,
+    cli.OPTION_DATABASE,
+    cli.OPTION_MACHINE,
+    cli.OPTION_INSTANCE_TYPE,
+    cli.OPTION_KEYNAME,
+    cli.OPTION_GROUP,
+    cli.OPTION_INFRASTRUCTURE,
+    cli.OPTION_REPLICATION,
+    cli.OPTION_READ_FACTOR,
+    cli.OPTION_WRITE_FACTOR,
+    cli.OPTION_APPENGINE,
+    cli.OPTION_RESTORE_FROM_TAR,
+    cli.OPTION_RESTORE_NEPTUNE_INFO,
+    cli.OPTION_SCP
+  ]
+  parser = cli.get_parser(options)
+  (options, args) = parser.parse_args(sys.argv[1:])
+  print options.instance_type

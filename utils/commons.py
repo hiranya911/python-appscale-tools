@@ -1,5 +1,4 @@
 import commands
-import os
 
 __author__ = 'hiranya'
 
@@ -8,17 +7,12 @@ class AppScaleToolsException(Exception):
     Exception.__init__(self, msg)
     self.code = code
 
-def assert_required_commands_exist(commands):
+def assert_commands_exist(commands):
   for command in commands:
     available = shell('which %s' % command)
     if not available:
-      raise AppScaleToolsException('Required command %s not available '
-                                   'in path' % command)
-
-def check_and_create_appscale_directory():
-  appscale_dir = os.path.expanduser("~/.appscale")
-  if not os.path.exists(appscale_dir):
-    os.mkdir(appscale_dir)
+      msg = 'Required command %s not available' % command
+      raise AppScaleToolsException(msg)
 
 def shell(command, status=False):
   if status:
@@ -49,5 +43,6 @@ def flatten(obj):
       output += flatten(item)
     return output
   else:
-    raise AppScaleToolsException('Object of type %s cannot be '
-                                 'flattened' % type(obj))
+    msg = 'Object of type %s cannot be flattened' % type(obj)
+    raise AppScaleToolsException(msg)
+

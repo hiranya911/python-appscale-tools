@@ -8,8 +8,8 @@ class TestNodeLayout(TestCase):
 
   def test_single_node_layout(self):
     node_layout = NodeLayout('resources/simple1.yaml')
-    self.assertEquals(len(node_layout.get_nodes()), 1)
-    node = node_layout.get_nodes()[0]
+    self.assertEquals(len(node_layout.nodes), 1)
+    node = node_layout.nodes[0]
     self.assertTrue(isinstance(node, SimpleAppScaleNode))
     self.assertEquals(node.id, '10.0.0.1')
     head_node = node_layout.get_head_node()
@@ -17,11 +17,11 @@ class TestNodeLayout(TestCase):
 
   def test_controller_single_server_layout(self):
     node_layout = NodeLayout('resources/simple2.yaml')
-    self.assertEquals(len(node_layout.get_nodes()), 2)
+    self.assertEquals(len(node_layout.nodes), 2)
     master_nodes_count = 0
     master_node = None
     worker_node = None
-    for node in node_layout.get_nodes():
+    for node in node_layout.nodes:
       self.assertTrue(isinstance(node, SimpleAppScaleNode))
       if node.has_role(ROLE_SHADOW):
         master_nodes_count += 1
@@ -48,11 +48,11 @@ class TestNodeLayout(TestCase):
 
   def test_controller_three_servers_layout(self):
     node_layout = NodeLayout('resources/simple7.yaml')
-    self.assertEquals(len(node_layout.get_nodes()), 4)
+    self.assertEquals(len(node_layout.nodes), 4)
     master_nodes_count = 0
     master_node = None
     worker_nodes = []
-    for node in node_layout.get_nodes():
+    for node in node_layout.nodes:
       self.assertTrue(isinstance(node, SimpleAppScaleNode))
       if node.has_role(ROLE_SHADOW):
         master_nodes_count += 1
@@ -135,7 +135,7 @@ class TestNodeLayout(TestCase):
       cli.OPTION_MAX_IMAGES: 3,
       cli.OPTION_MIN_IMAGES: 1
     })
-    self.assertTrue(len(layout.get_nodes()), 3)
+    self.assertTrue(len(layout.nodes), 3)
     self.assertEquals(layout.get_head_node().id, 'node-0')
 
     try:
@@ -147,7 +147,7 @@ class TestNodeLayout(TestCase):
 
   def test_advanced_format_yaml_only(self):
     layout = NodeLayout('resources/advanced1.yaml')
-    nodes = layout.get_nodes()
+    nodes = layout.nodes
     self.assertEquals(len(nodes), 2)
     open_node = None
     for node in nodes:

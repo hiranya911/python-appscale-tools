@@ -2,36 +2,23 @@
 
 import os
 import sys
-from utils import appscale_tools
-from utils.cli import *
+from utils import appscale_tools, cli
 from utils.commons import AppScaleToolsException
 
 __author__ = 'hiranya'
 
 if __name__ == '__main__':
-  options = [ OPTION_AUTO, OPTION_KEYNAME, OPTION_IPS ]
-  parser = get_parser(options)
+  options = [ cli.OPTION_AUTO, cli.OPTION_KEYNAME, cli.OPTION_IPS ]
+  parser = cli.get_parser(options)
   (options, args) = parser.parse_args(sys.argv[1:])
 
-  add_key_options = {
-    OPTION_KEYNAME : 'appscale',
-    OPTION_AUTO : False
-  }
-
   if options.ips is None:
-    print_usage_and_exit('IP address configuration not specified', parser)
+    cli.print_usage_and_exit('IP address configuration not specified', parser)
   elif not os.path.exists(options.ips) or not os.path.isfile(options.ips):
-    print_usage_and_exit('IP address configuration must be a valid file path', parser)
-  else:
-    add_key_options[OPTION_IPS] = options.ips
-
-  if options.keyname is not None:
-    add_key_options[OPTION_KEYNAME] = options.keyname
-
-  if options.auto:
-    add_key_options[OPTION_AUTO] = options.auto
+    cli.print_usage_and_exit('IP address configuration must be a valid file path',
+      parser)
 
   try:
-    appscale_tools.add_key_pair(add_key_options)
+    appscale_tools.add_key_pair(options.ips, options.keyname, options.auto)
   except AppScaleToolsException as e:
     print 'Error performing the requested operation:', e.message

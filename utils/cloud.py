@@ -17,6 +17,9 @@ class CloudAgent:
   def validate_machine_image(self, machine):
     raise NotImplemented
 
+  def get_environment_variables(self):
+    raise NotImplemented
+
 class EC2Agent(CloudAgent):
   def __init__(self):
     self.image_id_prefix = 'ami-'
@@ -28,6 +31,25 @@ class EC2Agent(CloudAgent):
     instance_type = options[cli.OPTION_INSTANCE_TYPE]
 
     conn = self.open_connection()
+
+    reservations = conn.get_all_instances()
+    instances = [i for r in reservations for i in r.instances]
+    for i in instances:
+      if i.state == 'running' and i.key_name == key_name:
+        raise AppScaleToolsException('Specified key name is already in use.')
+
+    key = conn.get_key_pair(key_name)
+    if key is None:
+      key = conn.create_key_pair(key_name)
+
+    named_key_loc = '~/.appscale/%s.key' % key_name
+    named_backup_key_loc = '~/.appscale/%s.private' % key_name
+    for loc in (named_key_loc, named_backup_key_loc):
+      full_path = os.path.expanduser(loc)
+      key_file = open(full_path, 'w')
+      key_file.write(key.material)
+      key_file.close()
+      os.chmod(key_file, 0600)
 
     groups = conn.get_all_security_groups()
     group_exists = False
@@ -94,6 +116,16 @@ class EC2Agent(CloudAgent):
     if image is None:
       raise AppScaleToolsException('Machine image %s does not exist' % machine)
 
+  def get_environment_variables(self):
+    variables = [
+      "EC2_PRIVATE_KEY", "EC2_CERT", "EC2_SECRET_KEY", "EC2_ACCESS_KEY"
+    ]
+    values = {}
+    for var in variables:
+      values['CLOUD_' + var] = os.environ.get(var)
+
+    return values
+
   def open_connection(self):
     try:
       access_key = os.environ['EC2_ACCESS_KEY']
@@ -118,6 +150,10 @@ CLOUD_AGENTS = {
 def validate_machine_image(infrastructure, machine):
   cloud_agent = CLOUD_AGENTS.get(infrastructure)
   cloud_agent.validate_machine_image(machine)
+
+def get_cloud_env_variables(infrastructure):
+  cloud_agent = CLOUD_AGENTS.get(infrastructure)
+  return cloud_agent.get_environment_variables()
 
 def spawn_head_node(options):
   cloud_agent = CLOUD_AGENTS.get(options[cli.OPTION_INFRASTRUCTURE])
