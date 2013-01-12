@@ -21,4 +21,4 @@ if __name__ == '__main__':
   try:
     appscale_tools.add_key_pair(options.ips, options.keyname, options.auto)
   except AppScaleToolsException as e:
-    print 'Error performing the requested operation:', e.message
+    print e.message

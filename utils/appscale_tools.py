@@ -1,6 +1,6 @@
 import getpass
 import os
-from utils import commons, crypto, cli, cloud
+from utils import commons, cli, cloud
 from utils.commons import AppScaleToolsException
 from utils.node_layout import NodeLayout
 
@@ -19,7 +19,7 @@ def add_key_pair(ips, keyname, auto=False, root_password=None):
   appscale_dir = os.path.expanduser(APPSCALE_DIR)
   if not os.path.exists(appscale_dir):
     os.mkdir(appscale_dir)
-  key_info = crypto.generate_rsa_key(appscale_dir, keyname)
+  key_info = commons.generate_rsa_key(appscale_dir, keyname)
   pvt_key = key_info[0]
   public_key = key_info[1]
 
@@ -27,19 +27,23 @@ def add_key_pair(ips, keyname, auto=False, root_password=None):
     root_password = getpass.getpass('Enter SSH password of root: ')
 
   for node in node_layout.nodes:
-    crypto.ssh_copy_id(node.id, pvt_key, auto, 'sshcopyid', root_password)
+    commons.ssh_copy_id(node.id, pvt_key, auto, 'sshcopyid', root_password)
 
   head_node = node_layout.get_head_node()
-  crypto.scp_file(pvt_key, '~/.ssh/id_dsa', head_node.ip, pvt_key)
-  crypto.scp_file(public_key, '~/.ssh/id_rsa.pub', head_node.ip, pvt_key)
+  commons.scp_file(pvt_key, '~/.ssh/id_dsa', head_node.ip, pvt_key)
+  commons.scp_file(public_key, '~/.ssh/id_rsa.pub', head_node.ip, pvt_key)
 
   print 'A new ssh key has been generated for you and placed at %s. ' \
         'You can now use this key to log into any of the machines you ' \
         'specified without providing a password via the following ' \
         'command:\n    ssh root@%s -i %s' % (pvt_key, head_node.id, pvt_key)
 
-def run_instances(infrastructure, machine, instance_type, ips, database, min,
-                  max, keyname, group, scp, replication, read_q, write_q):
+def run_instances(infrastructure=None, machine=None, instance_type=None, ips=None,
+                  database=None, min=None, max=None, keyname=None, group=None,
+                  scp=None, replication=None, read_q=None, write_q=None):
+
+  # TODO: Validate input arguments
+
   appscale_dir = os.path.expanduser(APPSCALE_DIR)
   if not os.path.exists(appscale_dir):
     os.mkdir(appscale_dir)
@@ -61,7 +65,7 @@ def run_instances(infrastructure, machine, instance_type, ips, database, min,
   node_layout = NodeLayout(ips, options)
 
   secret_key_file = os.path.join(APPSCALE_DIR, keyname + '.secret')
-  secret_key = crypto.generate_secret_key(secret_key_file)
+  secret_key = commons.generate_secret_key(secret_key_file)
 
   if cloud.is_valid_cloud_type(infrastructure):
     cloud.configure_security(infrastructure, keyname, group, appscale_dir)
@@ -74,12 +78,20 @@ def run_instances(infrastructure, machine, instance_type, ips, database, min,
   named_key_loc = os.path.join(appscale_dir, keyname + '.key')
   named_backup_key_loc = os.path.join(appscale_dir, keyname + '.private')
   ssh_key = None
+  key_exists = False
   for key in (named_key_loc, named_backup_key_loc):
-    if crypto.is_ssh_key_valid(key, head_node.id):
-      ssh_key = key
-      break
-  if ssh_key is None:
-    raise AppScaleToolsException('Unable to find a SSH key to login to AppScale nodes')
+    if os.path.exists(key):
+      key_exists = True
+      if commons.is_ssh_key_valid(key, head_node.id):
+        ssh_key = key
+        break
+
+  if not key_exists:
+    msg = 'Unable to find a SSH key to login to AppScale nodes'
+    raise AppScaleToolsException(msg)
+  elif ssh_key is None:
+    msg = 'Unable to login to AppScale nodes with the available SSH keys'
+    raise AppScaleToolsException(msg)
 
   # TODO: Ensure image is AppScale
 
@@ -87,8 +99,8 @@ def run_instances(infrastructure, machine, instance_type, ips, database, min,
     print 'Copying over local copy of AppScale from', scp
     # TODO: scp code
 
-  crypto.scp_file(ssh_key, '/root/.appscale/%s.key' % keyname,
-    head_node.id, ssh_key)
+  remote_key_file = '/root/.appscale/%s.key' % keyname
+  commons.scp_file(ssh_key, remote_key_file, head_node.id, ssh_key)
 
   # TODO: generate AppScale credentials
 
@@ -96,10 +108,10 @@ def run_instances(infrastructure, machine, instance_type, ips, database, min,
 
   # TODO: copy keys
 
-  crypto.scp_file('resources/controller.god', '/tmp/controller.god',
-    head_node.id, ssh_key)
-  crypto.run_remote_command('god load /tmp/controller.god', head_node.id, ssh_key)
-  crypto.run_remote_command('god start controller', head_node.id, ssh_key)
+  god_file = '/tmp/controller.god'
+  commons.scp_file('resources/controller.god', god_file, head_node.id, ssh_key)
+  commons.run_remote_command('god load ' + god_file, head_node.id, ssh_key)
+  commons.run_remote_command('god start controller', head_node.id, ssh_key)
 
   # TODO: Create AppController client
 

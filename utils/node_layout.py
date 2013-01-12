@@ -91,7 +91,7 @@ class NodeLayout:
       if cloud:
         if self.min_images is None or self.max_images is None:
           raise AppScaleToolsException(
-            'Both min_images and max_images must be specified when no '
+            'Both min and max options must be specified when no '
             'input yaml is provided', self.ERROR_MISSING_REQUIRED_OPTIONS)
         else:
           self.yaml = self.__generate_default_layout()
@@ -103,8 +103,8 @@ class NodeLayout:
       all_ips = commons.flatten(self.yaml.values())
       unique_ips = set(all_ips)
       if len(all_ips) != len(unique_ips):
-        raise AppScaleToolsException('Duplicate IP addresses found in '
-                                     'input yaml', self.ERROR_DUPLICATE_IPS)
+        msg = 'Duplicate IP addresses found in input yaml'
+        raise AppScaleToolsException(msg, self.ERROR_DUPLICATE_IPS)
 
     nodes = []
     for role,ips in self.yaml.items():

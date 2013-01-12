@@ -2,6 +2,7 @@ from datetime import datetime
 import os
 import boto
 import time
+from boto.exception import EC2ResponseError
 from utils import commons
 from utils.commons import AppScaleToolsException
 
@@ -28,70 +29,82 @@ class EC2Agent(CloudAgent):
     self.image_id_prefix = 'ami-'
 
   def configure_security(self, key_name, group_name, path):
-    conn = self.open_connection()
+    try:
+      conn = self.open_connection()
 
-    reservations = conn.get_all_instances()
-    instances = [i for r in reservations for i in r.instances]
-    for i in instances:
-      if i.state == 'running' and i.key_name == key_name:
-        raise AppScaleToolsException('Specified key name is already in use.')
+      reservations = conn.get_all_instances()
+      instances = [i for r in reservations for i in r.instances]
+      for i in instances:
+        if i.state == 'running' and i.key_name == key_name:
+          raise AppScaleToolsException('Specified key name is already in use.')
 
-    key = conn.get_key_pair(key_name)
-    if key is None:
-      key = conn.create_key_pair(key_name)
+      key = conn.get_key_pair(key_name)
+      if key is None:
+        key = conn.create_key_pair(key_name)
 
-    named_key_loc = os.path.join(path, key_name + '.key')
-    named_backup_key_loc = os.path.join(path, key_name + '.private')
-    for loc in (named_key_loc, named_backup_key_loc):
-      full_path = os.path.expanduser(loc)
-      key_file = open(full_path, 'w')
-      key_file.write(key.material)
-      key_file.close()
-      os.chmod(key_file, 0600)
+      named_key_loc = os.path.join(path, key_name + '.key')
+      named_backup_key_loc = os.path.join(path, key_name + '.private')
+      for loc in (named_key_loc, named_backup_key_loc):
+        full_path = os.path.expanduser(loc)
+        key_file = open(full_path, 'w')
+        key_file.write(key.material)
+        key_file.close()
+        os.chmod(key_file, 0600)
 
-    groups = conn.get_all_security_groups()
-    group_exists = False
-    for group in groups:
-      if group.name == group_name:
-        group_exists = True
-        break
-    if not group_exists:
-      conn.create_security_group(group_name,
-        'AppScale security group')
-      conn.authorize_security_group(group_name, from_port=1,
-        to_port=65535, ip_protocol='udp')
-      conn.authorize_security_group(group_name, from_port=1,
-        to_port=65535, ip_protocol='tcp')
-      conn.authorize_security_group(group_name, ip_protocol='icmp',
-        cidr_ip='0.0.0.0/0')
+      groups = conn.get_all_security_groups()
+      group_exists = False
+      for group in groups:
+        if group.name == group_name:
+          group_exists = True
+          break
+      if not group_exists:
+        conn.create_security_group(group_name,
+          'AppScale security group')
+        conn.authorize_security_group(group_name, from_port=1,
+          to_port=65535, ip_protocol='udp')
+        conn.authorize_security_group(group_name, from_port=1,
+          to_port=65535, ip_protocol='tcp')
+        conn.authorize_security_group(group_name, ip_protocol='icmp',
+          cidr_ip='0.0.0.0/0')
+    except Exception as e:
+      self.handle_exception('Error while configuring cloud security', e)
 
   def spawn_vms(self, count, key_name, group_name, machine, instance_type):
-    conn = self.open_connection()
+    try:
+      conn = self.open_connection()
 
-    instance_info = self.describe_instances(key_name)
-    conn.run_instances(machine, count, count, key_name=key_name,
-      security_groups=[group_name], instance_type=instance_type)
+      instance_info = self.describe_instances(key_name)
+      conn.run_instances(machine, count, count, key_name=key_name,
+        security_groups=[group_name], instance_type=instance_type)
 
-    end_time = datetime.datetime.now() + datetime.timedelta(0, 1800)
-    now = datetime.datetime.now()
-
-    while now < end_time:
-      time_left = (end_time - now).seconds
-      print('[{0}] {1} seconds left...'.format(now, time_left))
-      latest_instance_info = self.describe_instances(key_name)
-      public_ips = commons.diff(latest_instance_info[0], instance_info[0])
-      if count == len(public_ips):
-        private_ips = []
-        instance_ids = []
-        for public_ip in public_ips:
-          index = latest_instance_info[0].index(public_ip)
-          private_ips.append(latest_instance_info[1][index])
-          instance_ids.append(latest_instance_info[2][index])
-        return public_ips, private_ips, instance_ids
-      time.sleep(20)
+      end_time = datetime.datetime.now() + datetime.timedelta(0, 1800)
       now = datetime.datetime.now()
 
+      while now < end_time:
+        time_left = (end_time - now).seconds
+        print('[{0}] {1} seconds left...'.format(now, time_left))
+        latest_instance_info = self.describe_instances(key_name)
+        public_ips = commons.diff(latest_instance_info[0], instance_info[0])
+        if count == len(public_ips):
+          private_ips = []
+          instance_ids = []
+          for public_ip in public_ips:
+            index = latest_instance_info[0].index(public_ip)
+            private_ips.append(latest_instance_info[1][index])
+            instance_ids.append(latest_instance_info[2][index])
+          return public_ips, private_ips, instance_ids
+        time.sleep(20)
+        now = datetime.datetime.now()
+    except Exception as e:
+      self.handle_exception('Error while starting VMs in the cloud', e)
+
     raise AppScaleToolsException('Failed to spawn the required VMs')
+
+  def handle_exception(self, msg, exception):
+    if isinstance(exception, EC2ResponseError):
+      raise AppScaleToolsException(msg + ': ' + exception.error_message)
+    else:
+      raise AppScaleToolsException(msg + ': ' + exception.message)
 
   def describe_instances(self, keyname):
     instance_ids = []
