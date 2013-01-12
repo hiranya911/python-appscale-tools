@@ -2,13 +2,16 @@ from datetime import datetime
 import os
 import boto
 import time
-from utils import cli, commons
+from utils import commons
 from utils.commons import AppScaleToolsException
 
 __author__ = 'hiranya'
 
 class CloudAgent:
-  def spawn_vms(self, count, options):
+  def spawn_vms(self, count, key_name, group_name, machine, instance_type):
+    raise NotImplemented
+
+  def configure_security(self, key_name, group_name, path):
     raise NotImplemented
 
   def describe_instances(self, keyname):
@@ -24,12 +27,7 @@ class EC2Agent(CloudAgent):
   def __init__(self):
     self.image_id_prefix = 'ami-'
 
-  def spawn_vms(self, count, options):
-    key_name = options[cli.OPTION_KEYNAME]
-    group_name = options[cli.OPTION_GROUP]
-    image_id = options[cli.OPTION_MACHINE]
-    instance_type = options[cli.OPTION_INSTANCE_TYPE]
-
+  def configure_security(self, key_name, group_name, path):
     conn = self.open_connection()
 
     reservations = conn.get_all_instances()
@@ -42,8 +40,8 @@ class EC2Agent(CloudAgent):
     if key is None:
       key = conn.create_key_pair(key_name)
 
-    named_key_loc = '~/.appscale/%s.key' % key_name
-    named_backup_key_loc = '~/.appscale/%s.private' % key_name
+    named_key_loc = os.path.join(path, key_name + '.key')
+    named_backup_key_loc = os.path.join(path, key_name + '.private')
     for loc in (named_key_loc, named_backup_key_loc):
       full_path = os.path.expanduser(loc)
       key_file = open(full_path, 'w')
@@ -67,8 +65,11 @@ class EC2Agent(CloudAgent):
       conn.authorize_security_group(group_name, ip_protocol='icmp',
         cidr_ip='0.0.0.0/0')
 
+  def spawn_vms(self, count, key_name, group_name, machine, instance_type):
+    conn = self.open_connection()
+
     instance_info = self.describe_instances(key_name)
-    conn.run_instances(image_id, count, count, key_name=key_name,
+    conn.run_instances(machine, count, count, key_name=key_name,
       security_groups=[group_name], instance_type=instance_type)
 
     end_time = datetime.datetime.now() + datetime.timedelta(0, 1800)
@@ -155,9 +156,13 @@ def get_cloud_env_variables(infrastructure):
   cloud_agent = CLOUD_AGENTS.get(infrastructure)
   return cloud_agent.get_environment_variables()
 
-def spawn_head_node(options):
-  cloud_agent = CLOUD_AGENTS.get(options[cli.OPTION_INFRASTRUCTURE])
-  return cloud_agent.spawn_vms(1, options)
+def spawn_head_node(infrastructure, key_name, group_name, machine, instance_type):
+  cloud_agent = CLOUD_AGENTS.get(infrastructure)
+  return cloud_agent.spawn_vms(1, key_name, group_name, machine, instance_type)
+
+def configure_security(infrastructure, key_name, group_name, path):
+  cloud_agent = CLOUD_AGENTS.get(infrastructure)
+  return cloud_agent.configure_security(key_name, group_name, path)
 
 def is_valid_cloud_type(type):
-  return CLOUD_AGENTS.has_key(type)
+  return type is not None and CLOUD_AGENTS.has_key(type)

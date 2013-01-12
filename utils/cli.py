@@ -50,7 +50,8 @@ class CLIOptionRepo:
     self.put(OPTION_DATABASE,
       'Database engine to use with AppScale',
       type=CLIOption.TYPE_CHOICES,
-      choices=[ 'cassandra', 'hbase', 'mysql' ])
+      choices=[ 'cassandra', 'hbase', 'mysql' ],
+      default='cassandra')
     self.put(OPTION_GROUP,
       'Name of the security group to use when running over an IaaS layer (defaults to "appscale")',
       default='appscale')

@@ -59,3 +59,9 @@ def scp_file(source, destination, host, ssh_key):
   command = 'scp -i %s %s 2>&1 '\
             '%s root@%s:%s' % (ssh_key, SSH_OPTIONS, source, host, destination)
   shell(command, status=True)
+
+def run_remote_command(command, host, ssh_key):
+  remote_command = "ssh -i %s %s root@%s '%s > /dev/null " \
+                   "2>&1 &' &" % (ssh_key, SSH_OPTIONS, host, command)
+  shell(remote_command, status=True)
+
