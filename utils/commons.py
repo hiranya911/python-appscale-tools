@@ -192,11 +192,11 @@ def get_app_info(file, database):
     raise AppScaleToolsException('Application name %s is reserved' % name)
 
   for ch in name:
-    if ch.isupper() or (not ch.isalnum() and ch != '-'):
-      raise AppScaleToolsException('Application names may only contain lower'
+    if not ch.islower() and not ch.isdigit() and ch != '-':
+      raise AppScaleToolsException('Application names may only contain lower '
                                    'case letters, digits and hyphens')
     elif ch == '-' and database == 'hypertable':
-      raise AppScaleToolsException('Application name may not contain dashes'
+      raise AppScaleToolsException('Application name may not contain hyphens '
                                    'when used with Hypertable')
   return name, app_file, language
 
