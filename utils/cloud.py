@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import shutil
 import boto
 import time
 from boto.exception import EC2ResponseError
@@ -18,7 +19,7 @@ class CloudAgent:
   def describe_instances(self, keyname):
     raise NotImplemented
 
-  def validate_machine_image(self, machine):
+  def validate(self, machine):
     raise NotImplemented
 
   def get_environment_variables(self):
@@ -27,6 +28,9 @@ class CloudAgent:
 class EC2Agent(CloudAgent):
   def __init__(self):
     self.image_id_prefix = 'ami-'
+    self.required_variables = [
+      "EC2_PRIVATE_KEY", "EC2_CERT", "EC2_SECRET_KEY", "EC2_ACCESS_KEY"
+    ]
 
   def configure_security(self, key_name, group_name, path):
     try:
@@ -39,17 +43,28 @@ class EC2Agent(CloudAgent):
           raise AppScaleToolsException('Specified key name is already in use.')
 
       key = conn.get_key_pair(key_name)
-      if key is None:
-        key = conn.create_key_pair(key_name)
-
       named_key_loc = os.path.join(path, key_name + '.key')
       named_backup_key_loc = os.path.join(path, key_name + '.private')
-      for loc in (named_key_loc, named_backup_key_loc):
-        full_path = os.path.expanduser(loc)
-        key_file = open(full_path, 'w')
-        key_file.write(key.material)
-        key_file.close()
-        os.chmod(key_file, 0600)
+      if key is None:
+        key = conn.create_key_pair(key_name)
+        for loc in (named_key_loc, named_backup_key_loc):
+          key_file = open(loc, 'w')
+          key_file.write(key.material)
+          key_file.close()
+      elif os.path.exists(named_key_loc) and \
+           not os.path.exists(named_backup_key_loc):
+        shutil.copy(named_key_loc, named_backup_key_loc)
+      elif not os.path.exists(named_key_loc) and \
+           os.path.exists(named_backup_key_loc):
+        shutil.copy(named_backup_key_loc, named_key_loc)
+      elif not os.path.exists(named_key_loc) and \
+           not os.path.exists(named_backup_key_loc):
+        msg = 'Specified key: %s already exists in the cloud but a copy of it' \
+              'cannot be found in the local file system.' % key_name
+        raise AppScaleToolsException(msg)
+
+      os.chmod(named_key_loc, 0600)
+      os.chmod(named_backup_key_loc, 0600)
 
       groups = conn.get_all_security_groups()
       group_exists = False
@@ -58,8 +73,7 @@ class EC2Agent(CloudAgent):
           group_exists = True
           break
       if not group_exists:
-        conn.create_security_group(group_name,
-          'AppScale security group')
+        conn.create_security_group(group_name, 'AppScale security group')
         conn.authorize_security_group(group_name, from_port=1,
           to_port=65535, ip_protocol='udp')
         conn.authorize_security_group(group_name, from_port=1,
@@ -121,9 +135,16 @@ class EC2Agent(CloudAgent):
         private_ips.append(i.private_dns_name)
     return public_ips, private_ips, instance_ids
 
-  def validate_machine_image(self, machine):
-    if not machine.startswith(self.image_id_prefix):
+  def validate(self, machine):
+    if machine is None:
+      raise AppScaleToolsException('Machine image ID not specified')
+    elif not machine.startswith(self.image_id_prefix):
       raise AppScaleToolsException('Invalid machine image ID: ' + machine)
+
+    for var in self.required_variables:
+      if os.environ.get(var) is None:
+        msg = 'Required environment variable: %s not set' % var
+        raise AppScaleToolsException(msg)
 
     conn = self.open_connection()
     image = conn.get_image(machine)
@@ -131,26 +152,15 @@ class EC2Agent(CloudAgent):
       raise AppScaleToolsException('Machine image %s does not exist' % machine)
 
   def get_environment_variables(self):
-    variables = [
-      "EC2_PRIVATE_KEY", "EC2_CERT", "EC2_SECRET_KEY", "EC2_ACCESS_KEY"
-    ]
     values = {}
-    for var in variables:
+    for var in self.required_variables:
       values['CLOUD_' + var] = os.environ.get(var)
 
     return values
 
   def open_connection(self):
-    try:
-      access_key = os.environ['EC2_ACCESS_KEY']
-    except KeyError:
-      raise AppScaleToolsException('EC2_ACCESS_KEY not set')
-
-    try:
-      secret_key = os.environ['EC2_SECRET_KEY']
-    except KeyError:
-      raise AppScaleToolsException('EC2_SECRET_KEY not set')
-
+    access_key = os.environ['EC2_ACCESS_KEY']
+    secret_key = os.environ['EC2_SECRET_KEY']
     return boto.connect_ec2(access_key, secret_key)
 
 class EucaAgent(EC2Agent):
@@ -161,9 +171,9 @@ CLOUD_AGENTS = {
   'euca' : EucaAgent()
 }
 
-def validate_machine_image(infrastructure, machine):
+def validate(infrastructure, machine):
   cloud_agent = CLOUD_AGENTS.get(infrastructure)
-  cloud_agent.validate_machine_image(machine)
+  cloud_agent.validate(machine)
 
 def get_cloud_env_variables(infrastructure):
   cloud_agent = CLOUD_AGENTS.get(infrastructure)

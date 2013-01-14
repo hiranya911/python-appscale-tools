@@ -5,6 +5,7 @@ __author__ = 'hiranya'
 OPTION_APP_FILE = 'file'
 OPTION_APPENGINE = 'appengine'
 OPTION_AUTO = 'auto'
+OPTION_AUTO_SCALE = 'autoscale'
 OPTION_DATABASE = 'database'
 OPTION_GROUP = 'group'
 OPTION_INFRASTRUCTURE = 'infrastructure'
@@ -46,6 +47,9 @@ class CLIOptionRepo:
       type=CLIOption.TYPE_INT)
     self.put(OPTION_AUTO,
       'Automatically respond to all the prompts and warnings',
+      type=CLIOption.TYPE_BOOL, default=False)
+    self.put(OPTION_AUTO_SCALE,
+      'Automatically scale up and down to handle varying loads',
       type=CLIOption.TYPE_BOOL, default=False)
     self.put(OPTION_DATABASE,
       'Database engine to use with AppScale',
